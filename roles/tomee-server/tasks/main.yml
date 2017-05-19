@@ -1,0 +1,56 @@
+- name: install jdk8
+  package: name=openjdk-8-jdk-headless state=present
+
+- name: Create tomee account
+  user:
+    name: tomee
+    shell: /bin/false
+    system: yes
+    home: /home/tomee
+
+- name: Create folder /opt/tomee avec owner et groupe tomee
+  file:
+    path: /opt/tomee
+    state: directory
+    owner: tomee
+    group: tomee
+
+- name: Download tomee folder
+  get_url:
+    url: http://repo.maven.apache.org/maven2/org/apache/tomee/apache-tomee/7.0.3/apache-tomee-7.0.3-plus.tar.gz
+    dest: /home/tomee/
+
+- name: Unzip and install tomee in /opt/tomee
+  command: /bin/tar xzvf /home/tomee/apache-tomee-7.0.3-plus.tar.gz -C /opt/tomee --strip-components=1
+
+- name: tomee have /opt/tomee/webapps/
+  shell: chown -R tomee /opt/tomee/webapps/
+
+- name: tomee haves /opt/tomee/work/
+  shell: chown -R tomee /opt/tomee/work/
+
+- name: tomee have /opt/tomee/temp/
+  shell: chown -R tomee /opt/tomee/temp/
+
+- name: tomee propriétaire de /opt/tomee/logs/
+  shell: chown -R tomee /opt/tomee/logs/
+
+- name: group tomee with read only on the path /opt/tomee/conf/
+  shell: chmod -R g+r /opt/tomee/conf | chmod g+x /opt/tomee/conf
+
+- name: Create tomee service
+  file:
+    path: /etc/systemd/system/tomee.service
+    state: touch
+
+- name: Insert text into tomee service
+  shell: echo "[Unit]\n Description=Tomee service\n After=network.target\n [Service]\n Type=forking\n\n Environment=JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64\n Environment=CATALINA_PID=/opt/tomee/temp/tomee.pid\n Environment=CATALINA_HOME=/opt/tomee\n Environment=CATALINA_BASE=/opt/tomee\n Environment='CATALINA_OPTS=-Xms512M -Xmx1024M -server -XX:+UseParallelGC'\n Environment='JAVA_OPTS=-Djava.awt.headless=true -Djava.security.egd=file:/dev/./urandom'\n\n ExecStart=/opt/tomee/bin/startup.sh\n ExecStop=/opt/tomee/bin/shutdown.sh\n\n User=tomee\n Group=tomee\n UMask=0007\n RestartSec=10\n Restart=always\n\n [Install]\n WantedBy=multi-user.target\n" > /etc/systemd/system/tomee.service
+
+- name: Reload the systemd
+  shell: systemctl daemon-reload
+
+- name: Start the Tomcat service by typing
+  shell: systemctl start tomee
+
+- name: Enable tomee in start
+  shell: systemctl enable tomee
